@@ -1,5 +1,4 @@
-# AuraTriage भारत
-![CI](https://github.com/sachanshivali-max/AuraTriage-Bharat/actions/workflows/ci.yml/badge.svg)
+# AuraTriage भार
 [![GitHub Repo](https://img.shields.io/badge/GitHub-AuraTriage-Bharat-blue?logo=github)](https://github.com/sachanshivali-max/AuraTriage-Bharat)
 Repository URL: https://github.com/sachanshivali-max/AuraTriage-Bharat
 Clone this repository using SSH:
