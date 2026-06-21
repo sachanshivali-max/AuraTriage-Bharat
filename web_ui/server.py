@@ -33,8 +33,7 @@ from google.adk.runners import Runner
 from google.adk.sessions import InMemorySessionService
 from google.genai import types as genai_types
 
-from crop_disease_agent import root_agent
-from learning_path_agent.agent import root_agent as learning_path_agent
+# # Crop disease and learning path imports removed
 from run_triage import classify_triage, generate_triage_report, TRIAGE_QUICK_SCENARIOS, DISCLAIMER as TRIAGE_DISCLAIMER
 
 logging.basicConfig(level=logging.INFO)
@@ -44,8 +43,8 @@ logger = logging.getLogger(__name__)
 # FastAPI app setup
 # ─────────────────────────────────────────────────────────────
 app = FastAPI(
-    title="Crop Disease Diagnostic Agent API",
-    description="ADK 2.0 multi-agent pipeline for crop disease diagnosis",
+    title="AuraTriage Multi-Agent API",
+    description="Unified multi-agent platform for healthcare triage, learning paths, and optional crop disease diagnostics.",
     version="2.0.0",
 )
 
@@ -64,180 +63,14 @@ app.mount("/static", StaticFiles(directory=str(ui_dir)), name="static")
 # ADK Session & Runner setup
 # ─────────────────────────────────────────────────────────────
 session_service = InMemorySessionService()
-APP_NAME = "crop_disease_diagnostic"
+APP_NAME = "auratriage"
+# Keep crop disease functionality optional; set to None if module unavailable
 
 
 # ─────────────────────────────────────────────────────────────
 # SSE Streaming helper
 # ─────────────────────────────────────────────────────────────
-async def run_agent_streaming(
-    image_bytes: bytes,
-    image_mime: str,
-    crop_type: str,
-    session_id: str,
-) -> AsyncGenerator[str, None]:
-    """
-    Runs the ADK 2.0 SequentialAgent pipeline and yields SSE events
-    for each agent step (VisionAgent, RemedyAgent, ReportAgent).
-    """
-    user_id = f"user_{session_id[:8]}"
-
-    # Create a new ADK session for this request
-    session = await session_service.create_session(
-        app_name=APP_NAME,
-        user_id=user_id,
-        session_id=session_id,
-        state={"crop_type": crop_type},
-    )
-
-    runner = Runner(
-        agent=root_agent,
-        app_name=APP_NAME,
-        session_service=session_service,
-    )
-
-    # Build the multimodal user message:
-    # Text prompt + image inline data for VisionAgent
-    user_message = genai_types.Content(
-        role="user",
-        parts=[
-            genai_types.Part(
-                text=(
-                    f"Please analyze this crop image for disease. "
-                    f"Crop type: {crop_type if crop_type else 'unknown — please detect from image'}. "
-                    f"Provide a complete diagnosis."
-                )
-            ),
-            genai_types.Part(
-                inline_data=genai_types.Blob(
-                    mime_type=image_mime,
-                    data=image_bytes,
-                )
-            ),
-        ],
-    )
-
-    # Send start event
-    yield _sse_event(
-        {
-            "type": "pipeline_start",
-            "message": "🚀 Starting Crop Disease Diagnostic Pipeline...",
-            "session_id": session_id,
-        }
-    )
-
-    current_agent = None
-    full_report = []
-
-    try:
-        async for event in runner.run_async(
-            user_id=user_id,
-            session_id=session_id,
-            new_message=user_message,
-        ):
-            # Detect agent transitions from event metadata
-            agent_name = None
-            if hasattr(event, "author"):
-                agent_name = event.author
-
-            # Notify UI when a new node starts executing
-            if agent_name and agent_name != current_agent:
-                current_agent = agent_name
-                node_labels = {
-                    "VisionAgent": ("🔬", "Analyzing crop image for disease signatures..."),
-                    "RemedyAgent": ("🌿", "Querying agricultural remedy knowledge base..."),
-                    "ReportAgent": ("📋", "Synthesizing comprehensive diagnostic report..."),
-                    "CropDiseaseDiagnosticAgent": ("🤖", "Orchestrating diagnostic pipeline..."),
-                }
-                emoji, label = node_labels.get(agent_name, ("⚙️", f"Executing {agent_name}..."))
-                yield _sse_event(
-                    {
-                        "type": "agent_start",
-                        "agent": agent_name,
-                        "emoji": emoji,
-                        "message": label,
-                    }
-                )
-
-            # Stream text content chunks
-            if event.content and event.content.parts:
-                for part in event.content.parts:
-                    if hasattr(part, "text") and part.text:
-                        chunk = part.text
-                        full_report.append(chunk)
-                        yield _sse_event(
-                            {
-                                "type": "text_chunk",
-                                "agent": agent_name or current_agent,
-                                "chunk": chunk,
-                            }
-                        )
-
-            # Detect tool calls and notify UI
-            if hasattr(event, "get_function_calls"):
-                for call in event.get_function_calls() or []:
-                    yield _sse_event(
-                        {
-                            "type": "tool_call",
-                            "agent": agent_name or current_agent,
-                            "tool": call.name,
-                            "message": f"🔧 Calling tool: {call.name}",
-                        }
-                    )
-
-            # Detect state updates
-            if hasattr(event, "actions") and event.actions:
-                if hasattr(event.actions, "state_delta") and event.actions.state_delta:
-                    for key in event.actions.state_delta:
-                        if key in ("vision_analysis", "remedy_plan"):
-                            yield _sse_event(
-                                {
-                                    "type": "state_update",
-                                    "key": key,
-                                    "message": f"💾 State updated: {key}",
-                                }
-                            )
-
-            # Signal per-agent completion
-            if event.is_final_response() and agent_name:
-                yield _sse_event(
-                    {
-                        "type": "agent_complete",
-                        "agent": agent_name,
-                        "message": f"✅ {agent_name} completed",
-                    }
-                )
-
-        # Fetch final session state for summary
-        final_session = await session_service.get_session(
-            app_name=APP_NAME, user_id=user_id, session_id=session_id
-        )
-        state_summary = {}
-        if final_session:
-            for key in ("detected_disease_key", "diagnosis_confidence", "diagnosis_severity", "remedy_urgency"):
-                if key in final_session.state:
-                    state_summary[key] = final_session.state[key]
-
-        yield _sse_event(
-            {
-                "type": "pipeline_complete",
-                "message": "🎉 Diagnostic report generated successfully!",
-                "state_summary": state_summary,
-                "report": "".join(full_report),
-            }
-        )
-
-    except Exception as e:
-        logger.error(f"Pipeline error: {e}", exc_info=True)
-        yield _sse_event(
-            {
-                "type": "error",
-                "message": f"❌ Pipeline error: {str(e)}",
-            }
-        )
-    finally:
-        yield "data: [DONE]\n\n"
-
+# Crop disease pipeline removed
 
 def _sse_event(data: dict) -> str:
     """Format a dict as an SSE data event."""
@@ -247,65 +80,7 @@ def _sse_event(data: dict) -> str:
 # ─────────────────────────────────────────────────────────────
 # API Routes
 # ─────────────────────────────────────────────────────────────
-@app.get("/", response_class=HTMLResponse)
-async def serve_ui():
-    """Serve the main web UI."""
-    index_path = ui_dir / "index.html"
-    if not index_path.exists():
-        raise HTTPException(status_code=404, detail="index.html not found")
-    return HTMLResponse(content=index_path.read_text(encoding="utf-8"))
-
-
-@app.get("/health")
-async def health_check():
-    """Health check endpoint."""
-    return {
-        "status": "healthy",
-        "agent": "CropDiseaseDiagnosticAgent",
-        "version": "2.0.0",
-        "graph": "VisionAgent → RemedyAgent → ReportAgent",
-    }
-
-
-@app.post("/diagnose")
-async def diagnose_crop(
-    image: UploadFile = File(..., description="Crop image file (JPEG/PNG/WEBP)"),
-    crop_type: str = Form(default="", description="Optional crop type hint (e.g., 'tomato')"),
-):
-    """
-    Main diagnosis endpoint. Accepts a crop image and optional crop type,
-    runs the ADK 2.0 sequential agent pipeline, and streams SSE events
-    back to the client showing each node's progress and the final report.
-    """
-    # Validate file type
-    content_type = image.content_type or "image/jpeg"
-    if not content_type.startswith("image/"):
-        raise HTTPException(status_code=400, detail="File must be an image (JPEG/PNG/WEBP)")
-
-    image_bytes = await image.read()
-    if len(image_bytes) > 20 * 1024 * 1024:  # 20 MB limit
-        raise HTTPException(status_code=413, detail="Image too large. Max 20 MB.")
-
-    session_id = str(uuid.uuid4())
-    logger.info(
-        f"[Server] New diagnosis request | session={session_id} | "
-        f"crop='{crop_type}' | image_size={len(image_bytes)} bytes | mime={content_type}"
-    )
-
-    return StreamingResponse(
-        run_agent_streaming(
-            image_bytes=image_bytes,
-            image_mime=content_type,
-            crop_type=crop_type.strip(),
-            session_id=session_id,
-        ),
-        media_type="text/event-stream",
-        headers={
-            "Cache-Control": "no-cache",
-            "X-Accel-Buffering": "no",
-            "Connection": "keep-alive",
-        },
-    )
+# Crop disease UI routes removed
 
 
 @app.post("/diagnose/base64")
@@ -314,32 +89,22 @@ async def diagnose_crop_base64(payload: dict):
     Alternative endpoint accepting base64-encoded image (useful for JS fetch without FormData).
     Payload: { "image_b64": "...", "mime_type": "image/jpeg", "crop_type": "tomato" }
     """
-    try:
-        image_bytes = base64.b64decode(payload["image_b64"])
-        mime_type = payload.get("mime_type", "image/jpeg")
-        crop_type = payload.get("crop_type", "")
-        session_id = str(uuid.uuid4())
-
-        return StreamingResponse(
-            run_agent_streaming(
-                image_bytes=image_bytes,
-                image_mime=mime_type,
-                crop_type=crop_type,
-                session_id=session_id,
-            ),
-            media_type="text/event-stream",
-            headers={
-                "Cache-Control": "no-cache",
-                "X-Accel-Buffering": "no",
-                "Connection": "keep-alive",
-            },
-        )
-    except (KeyError, base64.binascii.Error) as e:
-        raise HTTPException(status_code=400, detail=f"Invalid payload: {e}")
+    raise HTTPException(status_code=501, detail="Crop disease diagnostic pipeline is currently disabled.")
 
 
+# ─────────────────────────────────────────────────────────────# ─────────────────────────────────────────────────────────────
+# Learning Path Routes (Disabled)
 # ─────────────────────────────────────────────────────────────
-# Learning Path Routes & Helper
+
+@app.post("/learning-path/generate")
+async def generate_learning_path(payload: dict):
+    """Learning Path functionality has been removed."""
+    raise HTTPException(status_code=501, detail="Learning Path feature is no longer available.")
+
+@app.get("/learning-path", response_class=HTMLResponse)
+async def serve_learning_path_ui():
+    """Learning Path UI has been removed."""
+    raise HTTPException(status_code=501, detail="Learning Path UI is no longer available.")
 # ─────────────────────────────────────────────────────────────
 LP_APP_NAME = "personalized_learning_path"
 
@@ -775,8 +540,7 @@ if __name__ == "__main__":
     else:
         print(f"✅ GOOGLE_API_KEY found ({api_key[:8]}...)")
 
-    print("🚀 Starting Crop Disease Diagnostic Agent server...")
-    print("   Graph: VisionAgent → RemedyAgent → ReportAgent")
+    print("🚀 Starting AuraTriage Multi-Agent Server...")
     print("   UI:    http://localhost:8000")
     print("   Docs:  http://localhost:8000/docs")
 
