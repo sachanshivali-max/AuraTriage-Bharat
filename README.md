@@ -1,12 +1,13 @@
 # AuraTriage भारत
-[![GitHub Repo](https://img.shields.io/badge/GitHub-AuraTriageभारत-blue?logo=github)](https://github.com/sachanshivali-max/AuraTriageभारत)
-Repository URL: https://github.com/sachanshivali-max/AuraTriageभारत
+![CI](https://github.com/sachanshivali-max/AuraTriage-Bharat/actions/workflows/ci.yml/badge.svg)
+[![GitHub Repo](https://img.shields.io/badge/GitHub-AuraTriage-Bharat-blue?logo=github)](https://github.com/sachanshivali-max/AuraTriage-Bharat)
+Repository URL: https://github.com/sachanshivali-max/AuraTriage-Bharat
 Clone this repository using SSH:
 ```bash
-git clone git@github.com:sachanshivali-max/AuraTriageभारत.git
+git clone git@github.com:sachanshivali-max/AuraTriage-Bharat.git
 ```
-![Architecture Diagram](assets/architecture_placeholder_1782057141588.png)
-![UI Mockup](assets/ui_placeholder_1782057141589_1782057157997.png)
+![Architecture Diagram](file:///C:/Users/shiva/.gemini/antigravity-ide/brain/5db3a382-68c6-448c-b0d4-325ccc33b6d1/architecture_diagram_1782064889429.png)
+![UI Mockup](file:///C:/Users/shiva/.gemini/antigravity-ide/brain/5db3a382-68c6-448c-b0d4-325ccc33b6d1/ui_placeholder_1782057141589_1782057157997.png)
 
 ## Project Overview
 
