@@ -1,5 +1,4 @@
 # AuraTriage भारत
-(https://github.com/sachanshivali-max/AuraTriage-Bharat/actions/workflows/ci.yml/badge.svg)
 (https://github.com/sachanshivali-max/AuraTriage-Bharat)
 Repository URL: https://github.com/sachanshivali-max/AuraTriage-Bharat
 Clone this repository using SSH:
