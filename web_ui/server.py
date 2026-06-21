@@ -1,13 +1,11 @@
 # ============================================================
 # web_ui/server.py
-# FastAPI server wrapping the ADK 2.0 Crop Disease Diagnostic Agent
-# Provides SSE streaming so the UI can show real-time agent progress
+# FastAPI server for AuraTriage Healthcare Triage Assistant
 # ============================================================
 
 from __future__ import annotations
 
 import asyncio
-import base64
 import json
 import logging
 import os
@@ -16,7 +14,7 @@ import uuid
 from pathlib import Path
 from typing import AsyncGenerator
 
-# Ensure project root is on sys.path so crop_disease_agent is importable
+# Ensure project root is on sys.path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from dotenv import load_dotenv
@@ -24,15 +22,17 @@ from dotenv import load_dotenv
 load_dotenv()
 
 import uvicorn
-from fastapi import FastAPI, File, Form, HTTPException, UploadFile
+from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 
-
-
-# # Crop disease and learning path imports removed
-from run_triage import classify_triage, generate_triage_report, TRIAGE_QUICK_SCENARIOS, DISCLAIMER as TRIAGE_DISCLAIMER
+from run_triage import (
+    classify_triage,
+    generate_triage_report,
+    TRIAGE_QUICK_SCENARIOS,
+    DISCLAIMER as TRIAGE_DISCLAIMER,
+)
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -41,8 +41,8 @@ logger = logging.getLogger(__name__)
 # FastAPI app setup
 # ─────────────────────────────────────────────────────────────
 app = FastAPI(
-    title="AuraTriage Multi-Agent API",
-    description="Unified multi-agent platform for healthcare triage, learning paths, and optional crop disease diagnostics.",
+    title="AuraTriage API",
+    description="Multi-agent Healthcare Triage Assistant.",
     version="2.0.0",
 )
 
@@ -53,56 +53,16 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Serve the web UI static files
+# Serve static files from the web_ui directory
 ui_dir = Path(__file__).parent
 app.mount("/static", StaticFiles(directory=str(ui_dir)), name="static")
 
-# ─────────────────────────────────────────────────────────────
-# ADK Session & Runner setup
-# ─────────────────────────────────────────────────────────────
-
-APP_NAME = "auratriage"
-# Keep crop disease functionality optional; set to None if module unavailable
-
 
 # ─────────────────────────────────────────────────────────────
-# SSE Streaming helper
-# ──────────────────────────# Learning Path functionality removed per user request
-
-
-            if hasattr(event, "get_function_calls"):
-                for call in event.get_function_calls() or []:
-                    yield _sse_event({
-                        "type": "tool_call",
-                        "agent": agent_name or current_agent,
-                        "tool": call.name,
-                        "message": f"🔧 Calling tool: {call.name}",
-                    })
-
-            if hasattr(event, "actions") and event.actions:
-                if hasattr(event.actions, "state_delta") and event.actions.state_delta:
-                    for key in event.actions.state_delta:
-                        if key in ("student_assessment_result", "sequenced_curriculum", "progress_report"):
-                            yield _sse_event({
-                                "type": "state_update",
-                                "key": key,
-                                "message": f"💾 State updated: {key}",
-                            })
-
-            if event.is_final_response() and agent_name:
-                yield _sse_event({
-                    "type": "agent_complete",
-                    "agent": agent_name,
-                    "message": f"✅ {agent_name} completed",
-                })
-
-# Learning Path code removed per user request
-
-
-# Learning Path UI serving function removed per user request
-
-# Learning Path route removed per user request
-
+# SSE helper
+# ─────────────────────────────────────────────────────────────
+def _sse_event(data: dict) -> str:
+    return f"data: {json.dumps(data, ensure_ascii=False)}\n\n"
 
 
 # ─────────────────────────────────────────────────────────────
@@ -147,7 +107,6 @@ async def run_triage_streaming(
                       "message": "🔧 Calling tool: classify_urgency"})
     await asyncio.sleep(0.5)
 
-    # Run actual classification
     result = classify_triage(messages)
     yield _sse_event({"type": "state_update", "key": "triage_result",
                       "message": f"💾 State updated: triage_result (urgency={result.urgency})"})
@@ -246,15 +205,14 @@ if __name__ == "__main__":
     else:
         print(f"✅ GOOGLE_API_KEY found ({api_key[:8]}...)")
 
-    print("🚀 Starting AuraTriage Multi-Agent Server...")
-    print("   UI:    http://localhost:3000")
+    print("🚀 Starting AuraTriage Server...")
+    print("   UI:    http://localhost:3000/triage")
     print("   Docs:  http://localhost:3000/docs")
-    print("   Docs:  http://localhost:8000/docs")
 
     uvicorn.run(
-    "web_ui.server:app",
-    host="0.0.0.0",
-    port=3000,
-    reload=True,
-    log_level="info",
-)
+        "web_ui.server:app",
+        host="0.0.0.0",
+        port=3000,
+        reload=True,
+        log_level="info",
+    )
