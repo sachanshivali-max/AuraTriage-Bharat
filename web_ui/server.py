@@ -29,9 +29,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 
-from google.adk.runners import Runner
-from google.adk.sessions import InMemorySessionService
-from google.genai import types as genai_types
+
 
 # # Crop disease and learning path imports removed
 from run_triage import classify_triage, generate_triage_report, TRIAGE_QUICK_SCENARIOS, DISCLAIMER as TRIAGE_DISCLAIMER
@@ -62,255 +60,15 @@ app.mount("/static", StaticFiles(directory=str(ui_dir)), name="static")
 # ─────────────────────────────────────────────────────────────
 # ADK Session & Runner setup
 # ─────────────────────────────────────────────────────────────
-session_service = InMemorySessionService()
+
 APP_NAME = "auratriage"
 # Keep crop disease functionality optional; set to None if module unavailable
 
 
 # ─────────────────────────────────────────────────────────────
 # SSE Streaming helper
-# ─────────────────────────────────────────────────────────────
-# Crop disease pipeline removed
+# ──────────────────────────# Learning Path functionality removed per user request
 
-def _sse_event(data: dict) -> str:
-    """Format a dict as an SSE data event."""
-    return f"data: {json.dumps(data)}\n\n"
-
-
-# ─────────────────────────────────────────────────────────────
-# API Routes
-# ─────────────────────────────────────────────────────────────
-# Crop disease UI routes removed
-
-
-@app.post("/diagnose/base64")
-async def diagnose_crop_base64(payload: dict):
-    """
-    Alternative endpoint accepting base64-encoded image (useful for JS fetch without FormData).
-    Payload: { "image_b64": "...", "mime_type": "image/jpeg", "crop_type": "tomato" }
-    """
-    raise HTTPException(status_code=501, detail="Crop disease diagnostic pipeline is currently disabled.")
-
-
-# ─────────────────────────────────────────────────────────────# ─────────────────────────────────────────────────────────────
-# Learning Path Routes (Disabled)
-# ─────────────────────────────────────────────────────────────
-
-@app.post("/learning-path/generate")
-async def generate_learning_path(payload: dict):
-    """Learning Path functionality has been removed."""
-    raise HTTPException(status_code=501, detail="Learning Path feature is no longer available.")
-
-@app.get("/learning-path", response_class=HTMLResponse)
-async def serve_learning_path_ui():
-    """Learning Path UI has been removed."""
-    raise HTTPException(status_code=501, detail="Learning Path UI is no longer available.")
-# ─────────────────────────────────────────────────────────────
-LP_APP_NAME = "personalized_learning_path"
-
-async def run_learning_path_streaming(
-    prompt: str,
-    session_id: str,
-) -> AsyncGenerator[str, None]:
-    """
-    Runs the ADK 2.0 PersonalizedLearningPathAgent pipeline and yields SSE events
-    for each agent step (AssessmentAgent, CurriculumAgent, TutorAgent).
-    If GOOGLE_API_KEY is not set or is placeholder, streams a simulated execution.
-    """
-    user_id = f"student_{session_id[:8]}"
-    api_key = os.getenv("GOOGLE_API_KEY")
-
-    if not api_key or api_key == "your_google_api_key_here":
-        yield _sse_event({
-            "type": "pipeline_start",
-            "message": "🚀 Starting Learning Path Simulation (Offline Mode)...",
-            "session_id": session_id,
-        })
-        await asyncio.sleep(0.5)
-
-        # 1. AssessmentAgent
-        yield _sse_event({
-            "type": "agent_start",
-            "agent": "AssessmentAgent",
-            "emoji": "🔬",
-            "message": "Analyzing learning goals, skill level, and learning style...",
-        })
-        await asyncio.sleep(1.0)
-        yield _sse_event({
-            "type": "tool_call",
-            "agent": "AssessmentAgent",
-            "tool": "save_student_assessment",
-            "message": "🔧 Calling tool: save_student_assessment",
-        })
-        await asyncio.sleep(0.6)
-        # Get dynamic or preset simulation data
-        from run_learning_path import get_demo_data
-        demo_data = get_demo_data(prompt)
-        style = demo_data["style"]
-        level = demo_data["level"]
-        concepts = demo_data["concepts"]
-        topics = demo_data["topics"]
-        demo_report = demo_data["report"]
-        
-        yield _sse_event({
-            "type": "state_update",
-            "key": "student_assessment_result",
-            "message": f"💾 State updated: student_assessment_result (style={style}, level={level})",
-        })
-        yield _sse_event({
-            "type": "agent_complete",
-            "agent": "AssessmentAgent",
-            "message": "✅ AssessmentAgent completed",
-        })
-        await asyncio.sleep(0.5)
-
-        # 2. CurriculumAgent
-        yield _sse_event({
-            "type": "agent_start",
-            "agent": "CurriculumAgent",
-            "emoji": "📚",
-            "message": "Resolving prerequisites and sequencing curriculum modules...",
-        })
-        await asyncio.sleep(1.0)
-        yield _sse_event({
-            "type": "tool_call",
-            "agent": "CurriculumAgent",
-            "tool": "fetch_and_sequence_curriculum",
-            "message": "🔧 Calling tool: fetch_and_sequence_curriculum",
-        })
-        await asyncio.sleep(0.6)
-        
-        yield _sse_event({
-            "type": "state_update",
-            "key": "sequenced_curriculum",
-            "message": f"💾 State updated: sequenced_curriculum ({len(topics)} topics sequenced)",
-        })
-        yield _sse_event({
-            "type": "agent_complete",
-            "agent": "CurriculumAgent",
-            "message": "✅ CurriculumAgent completed",
-        })
-        await asyncio.sleep(0.5)
-
-        # 3. TutorAgent
-        yield _sse_event({
-            "type": "agent_start",
-            "agent": "TutorAgent",
-            "emoji": "👨‍🏫",
-            "message": "Formulating tailored lesson plan and interactive exercises...",
-        })
-        await asyncio.sleep(1.0)
-        yield _sse_event({
-            "type": "tool_call",
-            "agent": "TutorAgent",
-            "tool": "save_progress_report",
-            "message": "🔧 Calling tool: save_progress_report",
-        })
-        await asyncio.sleep(0.5)
-        yield _sse_event({
-            "type": "state_update",
-            "key": "progress_report",
-            "message": "💾 State updated: progress_report",
-        })
-
-        # Stream report text
-        chunk_size = 120
-        for i in range(0, len(demo_report), chunk_size):
-            chunk = demo_report[i:i+chunk_size]
-            yield _sse_event({
-                "type": "text_chunk",
-                "agent": "TutorAgent",
-                "chunk": chunk,
-            })
-            await asyncio.sleep(0.02)
-
-        yield _sse_event({
-            "type": "agent_complete",
-            "agent": "TutorAgent",
-            "message": "✅ TutorAgent completed",
-        })
-        
-        yield _sse_event({
-            "type": "pipeline_complete",
-            "message": "🎉 Personalized learning path report generated successfully!",
-            "state_summary": {
-                "assessed_learning_style": style,
-                "assessed_skill_level": level,
-                "assessed_concepts": concepts,
-                "sequenced_topics": topics
-            },
-            "report": demo_report,
-        })
-        yield "data: [DONE]\n\n"
-        return
-
-    # Real execution mode (requires API key)
-    session = await session_service.create_session(
-        app_name=LP_APP_NAME,
-        user_id=user_id,
-        session_id=session_id,
-        state={"student_input": prompt},
-    )
-
-    runner = Runner(
-        agent=learning_path_agent,
-        app_name=LP_APP_NAME,
-        session_service=session_service,
-    )
-
-    user_message = genai_types.Content(
-        role="user",
-        parts=[
-            genai_types.Part(text=(
-                f"Student Input: \"{prompt}\"\n\n"
-                f"Please start the assessment, sequence the appropriate syllabus, "
-                f"and deliver a customized lesson and progress report."
-            ))
-        ],
-    )
-
-    yield _sse_event({
-        "type": "pipeline_start",
-        "message": "🚀 Starting Personalized Learning Path Pipeline...",
-        "session_id": session_id,
-    })
-
-    current_agent = None
-    full_report = []
-
-    try:
-        async for event in runner.run_async(
-            user_id=user_id,
-            session_id=session_id,
-            new_message=user_message,
-        ):
-            agent_name = getattr(event, "author", None)
-
-            if agent_name and agent_name != current_agent:
-                current_agent = agent_name
-                node_labels = {
-                    "AssessmentAgent": ("🔬", "Analyzing student goals, skill levels, and learning style..."),
-                    "CurriculumAgent": ("📚", "Fetching modules and sequencing prerequisites..."),
-                    "TutorAgent": ("👨‍🏫", "Synthesizing personalized explanations & exercises..."),
-                }
-                emoji, label = node_labels.get(agent_name, ("⚙️", f"Executing {agent_name}..."))
-                yield _sse_event({
-                    "type": "agent_start",
-                    "agent": agent_name,
-                    "emoji": emoji,
-                    "message": label,
-                })
-
-            if event.content and event.content.parts:
-                for part in event.content.parts:
-                    if hasattr(part, "text") and part.text:
-                        chunk = part.text
-                        full_report.append(chunk)
-                        yield _sse_event({
-                            "type": "text_chunk",
-                            "agent": agent_name or current_agent,
-                            "chunk": chunk,
-                        })
 
             if hasattr(event, "get_function_calls"):
                 for call in event.get_function_calls() or []:
@@ -338,64 +96,12 @@ async def run_learning_path_streaming(
                     "message": f"✅ {agent_name} completed",
                 })
 
-        final_session = await session_service.get_session(
-            app_name=LP_APP_NAME, user_id=user_id, session_id=session_id
-        )
-        state_summary = {}
-        if final_session:
-            for key in ("assessed_learning_style", "assessed_skill_level", "assessed_concepts"):
-                if key in final_session.state:
-                    state_summary[key] = final_session.state[key]
-            if "sequenced_content" in final_session.state:
-                try:
-                    import json
-                    seq = final_session.state["sequenced_content"]
-                    if isinstance(seq, str):
-                        seq = json.loads(seq)
-                    state_summary["sequenced_topics"] = [t["key"] for t in seq]
-                except Exception:
-                    pass
+# Learning Path code removed per user request
 
-        yield _sse_event({
-            "type": "pipeline_complete",
-            "message": "🎉 Learning Path report generated successfully!",
-            "state_summary": state_summary,
-            "report": "".join(full_report),
-        })
 
-    except Exception as e:
-        logger.error(f"Pipeline error: {e}", exc_info=True)
-        yield _sse_event({
-            "type": "error",
-            "message": f"❌ Pipeline error: {str(e)}",
-        })
-    finally:
-        yield "data: [DONE]\n\n"
+# Learning Path UI serving function removed per user request
 
-@app.get("/learning-path", response_class=HTMLResponse)
-async def serve_learning_path_ui():
-    """Serve the personalized learning path web UI."""
-    index_path = ui_dir / "learning_path.html"
-    if not index_path.exists():
-        raise HTTPException(status_code=404, detail="learning_path.html not found")
-    return HTMLResponse(content=index_path.read_text(encoding="utf-8"))
-
-@app.post("/learning-path/generate")
-async def generate_learning_path(payload: dict):
-    prompt = payload.get("prompt", "").strip()
-    if not prompt:
-        raise HTTPException(status_code=400, detail="Student prompt cannot be empty.")
-    session_id = str(uuid.uuid4())
-    logger.info(f"[Server] New learning path request | session={session_id} | prompt='{prompt[:50]}'")
-    return StreamingResponse(
-        run_learning_path_streaming(prompt, session_id),
-        media_type="text/event-stream",
-        headers={
-            "Cache-Control": "no-cache",
-            "X-Accel-Buffering": "no",
-            "Connection": "keep-alive",
-        },
-    )
+# Learning Path route removed per user request
 
 
 
@@ -541,13 +247,14 @@ if __name__ == "__main__":
         print(f"✅ GOOGLE_API_KEY found ({api_key[:8]}...)")
 
     print("🚀 Starting AuraTriage Multi-Agent Server...")
-    print("   UI:    http://localhost:8000")
+    print("   UI:    http://localhost:3000")
+    print("   Docs:  http://localhost:3000/docs")
     print("   Docs:  http://localhost:8000/docs")
 
     uvicorn.run(
-        "web_ui.server:app",
-        host="0.0.0.0",
-        port=8000,
-        reload=True,
-        log_level="info",
-    )
+    "web_ui.server:app",
+    host="0.0.0.0",
+    port=3000,
+    reload=True,
+    log_level="info",
+)
