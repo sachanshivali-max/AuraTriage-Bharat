@@ -45,7 +45,7 @@ GOOGLE_API_KEY=your_key_here
 3. **Run with Web UI (full demo)**
 ```bash
 python -m uvicorn web_ui.server:app --reload --port 3000
-# [Open http://localhost:3000](http://localhost:3000)
+[Open http://localhost:3000](http://localhost:3000)
 ```
 
 ## ⚠️ Disclaimer
