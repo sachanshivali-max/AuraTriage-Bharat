@@ -181,9 +181,14 @@ async def assess_triage(payload: dict):
     NOTE: No patient data is stored or logged beyond this request lifecycle.
     """
     msgs = payload.get("messages", [])
-    if not msgs or not any(m.strip() for m in msgs):
+    # Validate messages: must be non‑empty strings, each ≤ 500 characters
+    if not msgs or not any(isinstance(m, str) and m.strip() for m in msgs):
         raise HTTPException(status_code=400, detail="At least one symptom message is required.")
+    if any(len(m) > 500 for m in msgs):
+        raise HTTPException(status_code=400, detail="Each symptom message must be ≤ 500 characters.")
     location = payload.get("location", "").strip()
+    if len(location) > 200:
+        raise HTTPException(status_code=400, detail="Location must be ≤ 200 characters.")
     session_id = str(uuid.uuid4())
     logger.info(f"[Triage] New assessment | session={session_id} | msgs={len(msgs)} | location='{location}'")
     return StreamingResponse(

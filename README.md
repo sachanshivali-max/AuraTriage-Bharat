@@ -6,8 +6,8 @@ Clone this repository using SSH:
 ```bash
 git clone git@github.com:sachanshivali-max/AuraTriage-Bharat.git
 ```
-![Architecture Diagram](file:///C:/Users/shiva/.gemini/antigravity-ide/brain/5db3a382-68c6-448c-b0d4-325ccc33b6d1/architecture_diagram_1782064889429.png)
-![UI Mockup](file:///C:/Users/shiva/.gemini/antigravity-ide/brain/5db3a382-68c6-448c-b0d4-325ccc33b6d1/ui_placeholder_1782057141589_1782057157997.png)
+![Architecture Diagram](assets/architecture_diagram.png)
+![UI Mockup](assets/ui_mockup.png)
 
 ## Project Overview
 
