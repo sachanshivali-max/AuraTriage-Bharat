@@ -1,4 +1,4 @@
-# AuraTriage भारत
+# HEALTHTRIAGE
 (https://github.com/sachanshivali-max/AuraTriage-Bharat)
 Repository URL: https://github.com/sachanshivali-max/AuraTriage-Bharat
 Clone this repository using SSH:
@@ -10,7 +10,7 @@ git clone git@github.com:sachanshivali-max/AuraTriage-Bharat.git
 
 ## Project Overview
 
-**AuraTriage भारत** is a healthcare triage assistant built with Python, FastAPI, and a modern web UI. It allows users to input patient symptoms and receive AI‑generated preliminary assessments and next‑step recommendations. The backend leverages a large language model (LLM) via the Google AI API.
+**HealthTriage** is a healthcare triage assistant built with Python, FastAPI, and a modern web UI. It allows users to input patient symptoms and receive AI‑generated preliminary assessments and next‑step recommendations. The backend leverages a large language model (LLM) via the Google AI API.
 
 ## Features
 
