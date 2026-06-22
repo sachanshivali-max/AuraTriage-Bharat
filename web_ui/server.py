@@ -24,7 +24,7 @@ load_dotenv()
 import uvicorn
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import HTMLResponse, StreamingResponse
+from fastapi.responses import HTMLResponse, RedirectResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 
 from run_triage import (
@@ -157,6 +157,18 @@ async def run_triage_streaming(
         "report": report_text,
     })
     yield "data: [DONE]\n\n"
+
+
+@app.get("/", response_class=RedirectResponse, include_in_schema=False)
+async def root_redirect():
+    """Redirect root URL to the Triage UI."""
+    return RedirectResponse(url="/triage")
+
+
+@app.get("/health")
+async def health_check():
+    """Health check endpoint."""
+    return {"status": "healthy", "service": "AuraTriage", "version": "2.0.0"}
 
 
 @app.get("/triage", response_class=HTMLResponse)

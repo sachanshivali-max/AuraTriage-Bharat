@@ -166,7 +166,7 @@ check(result.urgency_color.startswith("#"), "urgency_color is a hex color")
 print("\n==========================================")
 print(f"RESULTS: {pass_count} passed, {fail_count} failed out of {pass_count + fail_count} tests")
 if fail_count == 0:
-    print("STATUS: ALL TESTS PASSED ✅")
+    print("STATUS: ALL TESTS PASSED [OK]")
 else:
     print(f"STATUS: {fail_count} TEST(S) FAILED [FAILED]")
 print("==========================================\n")

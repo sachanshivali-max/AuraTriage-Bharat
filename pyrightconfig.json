@@ -1,0 +1,17 @@
+{
+  "include": [
+    "web_ui",
+    "run_triage.py",
+    "triage_server.py",
+    "test_triage_verification.py",
+    "debug_test.py"
+  ],
+  "exclude": [
+    "graph.py",
+    "**/__pycache__"
+  ],
+  "pythonVersion": "3.11",
+  "typeCheckingMode": "basic",
+  "reportMissingImports": "warning",
+  "reportMissingModuleSource": "none"
+}
