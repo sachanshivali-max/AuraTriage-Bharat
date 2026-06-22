@@ -47,7 +47,7 @@ GOOGLE_API_KEY=your_key_here
 python -m uvicorn web_ui.server:app --reload --port 3000
 [Open http://localhost:3000](http://localhost:3000)
 ```
-[Open http://localhost:3000](http://localhost:3000)
+https://auratriage-bharat.onrender.com
 
 ## ⚠️ Disclaimer
 
